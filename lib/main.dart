@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'services/notification_service.dart';
 
 import 'services/auth_service.dart';
 import 'services/firestore_service.dart';
@@ -13,10 +14,15 @@ void main() async {
 
   try {
     await Firebase.initializeApp();
+
+    // ─────────────────────────────────────
+    // NOTIFICATION INITIALIZATION
+    // ─────────────────────────────────────
+    await NotificationService.initialize();
+
   } catch (e) {
-    // If this fails → your google-services.json / gradle is wrong
     debugPrint("FATAL: Firebase initialization failed: $e");
-    rethrow;
+    // rethrow; // Better not to crash the whole app if init fails, but log it.
   }
 
   runApp(const MyApp());
@@ -29,12 +35,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // CORE SERVICES
         ChangeNotifierProvider(create: (_) => AuthService()),
         Provider(create: (_) => FirestoreService()),
         Provider(create: (_) => LocationService()),
 
-        // AUTH STATE STREAM
         StreamProvider<User?>(
           create: (context) =>
               context.read<AuthService>().authStateChanges,

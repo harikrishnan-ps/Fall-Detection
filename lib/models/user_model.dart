@@ -1,9 +1,12 @@
 class UserModel {
   final String uid;
   final String email;
-  final String role; // 'caregiver' or 'patient'
-  final String? linkedCaregiverId; // IF patient: who monitors me?
-  final List<String> linkedPatientIds; // IF caregiver: who do I monitor?
+  final String role; // caregiver | patient
+
+  final String? linkedCaregiverId;
+  final List<String> linkedPatientIds;
+
+  final String? fcmToken;
 
   UserModel({
     required this.uid,
@@ -11,6 +14,7 @@ class UserModel {
     required this.role,
     this.linkedCaregiverId,
     this.linkedPatientIds = const [],
+    this.fcmToken,
   });
 
   Map<String, dynamic> toMap() {
@@ -20,6 +24,7 @@ class UserModel {
       'role': role,
       'linkedCaregiverId': linkedCaregiverId,
       'linkedPatientIds': linkedPatientIds,
+      'fcmToken': fcmToken,
     };
   }
 
@@ -30,6 +35,7 @@ class UserModel {
       role: map['role'] ?? '',
       linkedCaregiverId: map['linkedCaregiverId'],
       linkedPatientIds: List<String>.from(map['linkedPatientIds'] ?? []),
+      fcmToken: map['fcmToken'],
     );
   }
 }

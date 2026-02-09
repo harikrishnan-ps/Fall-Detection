@@ -7,6 +7,9 @@ import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/location_service.dart';
 
+// NEW IMPORT
+import '../../services/fall_detection_service.dart';
+
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({super.key});
 
@@ -15,8 +18,29 @@ class PatientHomeScreen extends StatefulWidget {
 }
 
 class _PatientHomeScreenState extends State<PatientHomeScreen> {
+
   bool _isSimulatingFall = false;
 
+  // ───────────── NEW ─────────────
+  late FallDetectionService _fallService;
+  // ───────────────────────────────
+
+  @override
+  void initState() {
+    super.initState();
+
+    // START REAL DETECTION
+    _fallService = FallDetectionService();
+    _fallService.start();
+  }
+
+  @override
+  void dispose() {
+    _fallService.stop();
+    super.dispose();
+  }
+
+  // ───────────── SIMULATE FALL (KEEPED) ─────────────
   Future<void> _simulateFall() async {
     setState(() => _isSimulatingFall = true);
 
@@ -33,9 +57,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       final pos = await locationService.getCurrentLocation();
       print("STEP 2 - location received: ${pos.latitude}, ${pos.longitude}");
 
-
       final alert = FallAlertModel(
-        id: "", // Firestore will generate
+        id: "",
         patientId: user.uid,
         latitude: pos.latitude,
         longitude: pos.longitude,
@@ -79,10 +102,12 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           )
         ],
       ),
+
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+
             const Icon(Icons.health_and_safety,
                 size: 100, color: Colors.green),
 
@@ -90,8 +115,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
 
             const Text(
               'Monitoring Active',
-              style:
-                  TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 10),
@@ -106,7 +132,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   SelectableText(
                     user?.uid ?? "unknown",
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 18),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18),
                   ),
                 ],
               ),
@@ -130,7 +157,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                       label: const Text(
                         'SIMULATE FALL',
                         style: TextStyle(
-                            color: Colors.white, fontSize: 18),
+                            color: Colors.white,
+                            fontSize: 18),
                       ),
                       onPressed: _simulateFall,
                     ),

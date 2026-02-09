@@ -5,70 +5,93 @@ import 'package:intl/intl.dart';
 import '../../models/fall_alert_model.dart';
 import '../../services/firestore_service.dart';
 
-class PatientDetailScreen extends StatelessWidget {
+class PatientDetailScreen extends StatefulWidget {
   final String patientId;
 
   const PatientDetailScreen({super.key, required this.patientId});
 
   @override
-  Widget build(BuildContext context) {
-    final firestore = Provider.of<FirestoreService>(context, listen: false);
+  State<PatientDetailScreen> createState() => _PatientDetailScreenState();
+}
 
+class _PatientDetailScreenState extends State<PatientDetailScreen> {
+
+  GoogleMapController? _mapController;
+  // Set<Marker> _markers = {}; // Removed state, derived from stream
+  // LatLng? _initialPosition; // Removed state
+
+  late Stream<List<FallAlertModel>> _alertsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    final firestore = Provider.of<FirestoreService>(context, listen: false);
+    _alertsStream = firestore.getAlertsForPatient(widget.patientId);
+  }
+
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
+  }
+
+  Set<Marker> _buildMarkers(List<FallAlertModel> alerts) {
+    return alerts.map((alert) {
+      return Marker(
+        markerId: MarkerId(alert.id),
+        position: LatLng(alert.latitude, alert.longitude),
+        infoWindow: InfoWindow(
+          title: 'Fall Detected',
+          snippet: DateFormat('MMM d, HH:mm').format(alert.timestamp),
+        ),
+      );
+    }).toSet();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Patient Details & Logs')),
 
       body: StreamBuilder<List<FallAlertModel>>(
-        stream: firestore.getAlertsForPatient(patientId),
+        stream: _alertsStream, // Fixed: Stream is stable now
 
         builder: (context, snapshot) {
 
-          // 1. Loading
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // 2. Error
           if (snapshot.hasError) {
             return Center(child: Text("Error: ${snapshot.error}"));
           }
 
           final alerts = snapshot.data ?? [];
 
-          // 3. No data
           if (alerts.isEmpty) {
             return const Center(child: Text("No falls recorded yet"));
           }
 
-          // Build markers safely
-          final markers = alerts.map((alert) {
-            return Marker(
-              markerId: MarkerId(alert.id),
-              position: LatLng(alert.latitude, alert.longitude),
-              infoWindow: InfoWindow(
-                title: 'Fall Detected',
-                snippet: DateFormat('MMM d, HH:mm').format(alert.timestamp),
-              ),
-            );
-          }).toSet();
-
-          // Center map on latest alert
-          final initialPosition = LatLng(
-            alerts.first.latitude,
-            alerts.first.longitude,
-          );
+          // Declarative markers
+          final markers = _buildMarkers(alerts);
+          final initialPos = LatLng(alerts.first.latitude, alerts.first.longitude);
 
           return Column(
             children: [
 
-              // ================= MAP =================
+              // ============== MAP ==============
               SizedBox(
                 height: 300,
                 child: GoogleMap(
+                  onMapCreated: (c) => _mapController = c,
+
                   initialCameraPosition: CameraPosition(
-                    target: initialPosition,
+                    target: initialPos,
                     zoom: 15,
                   ),
+
                   markers: markers,
+
                   myLocationEnabled: true,
                   zoomControlsEnabled: true,
                 ),
@@ -76,7 +99,6 @@ class PatientDetailScreen extends StatelessWidget {
 
               const Divider(),
 
-              // ============== LOG TITLE ==============
               const Padding(
                 padding: EdgeInsets.all(8.0),
                 child: Text(
@@ -110,7 +132,8 @@ class PatientDetailScreen extends StatelessWidget {
                         title: const Text("Fall Detected"),
 
                         subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
                           children: [
 
                             Text(
@@ -121,7 +144,6 @@ class PatientDetailScreen extends StatelessWidget {
                               "Location: ${alert.latitude.toStringAsFixed(4)}, "
                               "${alert.longitude.toStringAsFixed(4)}",
                             ),
-
                           ],
                         ),
                       ),

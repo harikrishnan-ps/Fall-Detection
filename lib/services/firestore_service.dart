@@ -68,6 +68,7 @@ class FirestoreService {
         .collection(AppConstants.alertsCollection)
         .where('patientId', isEqualTo: patientId)
         .orderBy('timestamp', descending: true)
+        .limit(50) // Limit to 50 recent (fixes frame drops)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {

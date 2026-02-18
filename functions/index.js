@@ -53,6 +53,16 @@ exports.sendFallNotification = functions.firestore
       title: "🚨 FALL DETECTED",
       body: "Your patient needs help immediately!"
     },
+    
+    // Add Android specific config for channel ID
+    android: {
+      notification: {
+        channelId: "high_importance_channel",
+        priority: "high",
+        defaultSound: true,
+        visibility: "public"
+      }
+    },
 
     data: {
       patientId: patientId,

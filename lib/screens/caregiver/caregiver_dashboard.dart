@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/notification_service.dart';
 import 'patient_detail_screen.dart';
+import '../encryption_test_screen.dart';
 
 class CaregiverDashboard extends StatefulWidget {
   const CaregiverDashboard({Key? key}) : super(key: key);
@@ -162,6 +163,20 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
             heroTag: "save",
             onPressed: () => NotificationService.initialize(),
             child: const Icon(Icons.save),
+          ),
+
+          const SizedBox(height: 10),
+
+          FloatingActionButton(
+            heroTag: "test_enc",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const EncryptionTestScreen()),
+              );
+            },
+            child: const Icon(Icons.security),
           ),
 
           const SizedBox(height: 10),

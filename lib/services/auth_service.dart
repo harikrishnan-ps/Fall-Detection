@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'notification_service.dart';
 
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -13,10 +14,12 @@ class AuthService extends ChangeNotifier {
   // Sign In
   Future<UserCredential?> signIn(String email, String password) async {
     try {
-      return await _auth.signInWithEmailAndPassword(
+      final cred = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+      await NotificationService.updateToken();
+      return cred;
     } catch (e) {
       debugPrint("Login Error: $e");
       rethrow;
@@ -37,6 +40,8 @@ class AuthService extends ChangeNotifier {
         'role': null,
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      await NotificationService.updateToken();
 
       return cred;
     } catch (e) {

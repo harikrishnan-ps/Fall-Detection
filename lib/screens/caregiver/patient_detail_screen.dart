@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../models/fall_alert_model.dart';
@@ -16,9 +17,7 @@ class PatientDetailScreen extends StatefulWidget {
 
 class _PatientDetailScreenState extends State<PatientDetailScreen> {
 
-  GoogleMapController? _mapController;
-  // Set<Marker> _markers = {}; // Removed state, derived from stream
-  // LatLng? _initialPosition; // Removed state
+
 
   late Stream<List<FallAlertModel>> _alertsStream;
 
@@ -31,21 +30,23 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
 
   @override
   void dispose() {
-    _mapController?.dispose();
+
     super.dispose();
   }
 
-  Set<Marker> _buildMarkers(List<FallAlertModel> alerts) {
+  List<Marker> _buildMarkers(List<FallAlertModel> alerts) {
     return alerts.map((alert) {
       return Marker(
-        markerId: MarkerId(alert.id),
-        position: LatLng(alert.latitude, alert.longitude),
-        infoWindow: InfoWindow(
-          title: 'Fall Detected',
-          snippet: DateFormat('MMM d, HH:mm').format(alert.timestamp),
+        point: LatLng(alert.latitude, alert.longitude),
+        width: 40,
+        height: 40,
+        child: const Icon(
+          Icons.location_on,
+          color: Colors.red,
+          size: 40,
         ),
       );
-    }).toSet();
+    }).toList();
   }
 
   @override
@@ -82,18 +83,20 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
               // ============== MAP ==============
               SizedBox(
                 height: 300,
-                child: GoogleMap(
-                  onMapCreated: (c) => _mapController = c,
-
-                  initialCameraPosition: CameraPosition(
-                    target: initialPos,
-                    zoom: 15,
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: initialPos,
+                    initialZoom: 15.0,
                   ),
-
-                  markers: markers,
-
-                  myLocationEnabled: true,
-                  zoomControlsEnabled: true,
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.fall_detection_app',
+                    ),
+                    MarkerLayer(
+                      markers: markers,
+                    ),
+                  ],
                 ),
               ),
 

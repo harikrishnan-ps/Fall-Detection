@@ -51,6 +51,16 @@ class FirestoreService {
     });
   }
 
+  Future<void> unlinkPatient(String caregiverId, String patientId) async {
+    await _db.collection(AppConstants.usersCollection).doc(caregiverId).update({
+      'linkedPatientIds': FieldValue.arrayRemove([patientId])
+    });
+
+    await _db.collection(AppConstants.usersCollection).doc(patientId).update({
+      'linkedCaregiverId': null,
+    });
+  }
+
   // ───────────────── FALL ALERTS ─────────────────
 
   Future<void> reportFall(FallAlertModel alert) async {

@@ -1,14 +1,23 @@
+import 'dart:typed_data';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../Encryption/ascon.dart';
+import '../utils/hex_utils.dart';
 
 // Top-level background handler
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint("Handling a background message: ${message.messageId}");
-  // You can initialize logic here if needed, but simple notifications work automatically.
+  
+  // Initialize local notifications in background isolate
+  final FlutterLocalNotificationsPlugin localNotif = FlutterLocalNotificationsPlugin();
+  const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  await localNotif.initialize(const InitializationSettings(android: androidSettings));
+  
+  await NotificationService.handleEncryptedMessage(message, localNotif);
 }
 
 class NotificationService {
@@ -90,10 +99,64 @@ class NotificationService {
             ),
           );
         }
+
+        // Handle customized encrypted data message
+        handleEncryptedMessage(message, _localNotifications);
       });
 
     } else {
       debugPrint('❌ User declined or has not accepted permission');
+    }
+  }
+
+  static Future<void> handleEncryptedMessage(RemoteMessage message, FlutterLocalNotificationsPlugin localNotif) async {
+    final data = message.data;
+    if (data['secure'] == true || data['secure'] == 'true') {
+      final ciphertextHex = data['data'] as String?;
+      if (ciphertextHex == null) return;
+
+      final ascon = Ascon();
+      // Using exactly the example key and nonce from encryption_test_screen.dart
+      final keyBytes = HexUtils.fromHex("000102030405060708090a0b0c0d0e0f");
+      final nonceBytes = HexUtils.fromHex("a0a1a2a3a4a5a6a7a8a9aaabacadaeaf");
+      final ciphertextBytes = HexUtils.fromHex(ciphertextHex);
+
+      if (keyBytes == null || nonceBytes == null || ciphertextBytes == null) {
+        debugPrint("Encrypted payload has invalid hex data.");
+        return;
+      }
+
+      try {
+        final plaintext = ascon.decrypt(
+          ciphertext: ciphertextBytes,
+          key: keyBytes,
+          nonce: nonceBytes,
+          associatedData: Uint8List(0),
+        );
+        
+        if (plaintext != null) {
+          await localNotif.show(
+            DateTime.now().millisecond,
+            "Fall Detected",
+            "An emergency fall event has been detected securely.",
+            NotificationDetails(
+              android: AndroidNotificationDetails(
+                _channelId,
+                _channelName,
+                channelDescription: _channelDesc,
+                icon: '@mipmap/ic_launcher',
+                importance: Importance.max,
+                priority: Priority.high,
+                fullScreenIntent: true,
+              ),
+            ),
+          );
+        } else {
+          debugPrint("Failed to decrypt secure message (tag mismatch).");
+        }
+      } catch (e) {
+        debugPrint("Decryption error: $e");
+      }
     }
   }
 

@@ -126,15 +126,20 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
             itemBuilder: (context, index) {
 
               final pid = patientIds[index];
+              final customName = userData.patientNames?[pid];
 
               final safeId = pid.length > 6
                   ? pid.substring(0, 6)
                   : pid;
 
+              final displayName = customName != null && customName.isNotEmpty 
+                  ? customName 
+                  : 'Patient ID: ...$safeId...';
+
               return ListTile(
                 leading: const Icon(Icons.person),
 
-                title: Text('Patient ID: ...$safeId...'),
+                title: Text(displayName),
 
                 subtitle: Text(pid),
 
@@ -150,38 +155,105 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
                   );
                 },
                 onLongPress: () {
-                  showDialog(
+                  showModalBottomSheet(
                     context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Remove Patient?'),
-                      content: const Text('Are you sure you want to unlink this patient?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancel'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () async {
-                            try {
-                              await firestore.unlinkPatient(firebaseUser.uid, pid);
-                              if (context.mounted) Navigator.pop(context);
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Patient removed successfully')),
-                                  );
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Error: $e')),
-                                );
-                              }
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                          child: const Text('Remove'),
-                        ),
-                      ],
+                    builder: (context) => SafeArea(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.edit),
+                            title: const Text('Rename Patient'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              
+                              final nameController = TextEditingController(text: customName);
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Rename Patient'),
+                                  content: TextField(
+                                    controller: nameController,
+                                    decoration: const InputDecoration(labelText: 'Patient Name'),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        try {
+                                          await firestore.renamePatient(
+                                            firebaseUser.uid, 
+                                            pid, 
+                                            nameController.text.trim()
+                                          );
+                                          if (context.mounted) {
+                                            Navigator.pop(context);
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('Patient renamed successfully')),
+                                            );
+                                          }
+                                        } catch (e) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('Error: $e')),
+                                            );
+                                          }
+                                        }
+                                      },
+                                      child: const Text('Save'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.delete, color: Colors.red),
+                            title: const Text('Remove Patient', style: TextStyle(color: Colors.red)),
+                            onTap: () {
+                              Navigator.pop(context);
+                              
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Remove Patient?'),
+                                  content: const Text('Are you sure you want to unlink this patient?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        try {
+                                          await firestore.unlinkPatient(firebaseUser.uid, pid);
+                                          if (context.mounted) Navigator.pop(context);
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('Patient removed successfully')),
+                                            );
+                                          }
+                                        } catch (e) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('Error: $e')),
+                                            );
+                                          }
+                                        }
+                                      },
+                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                      child: const Text('Remove'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },

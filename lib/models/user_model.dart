@@ -7,6 +7,7 @@ class UserModel {
   final List<String> linkedPatientIds;
 
   final String? fcmToken;
+  final Map<String, String>? patientNames;
 
   UserModel({
     required this.uid,
@@ -15,6 +16,7 @@ class UserModel {
     this.linkedCaregiverId,
     this.linkedPatientIds = const [],
     this.fcmToken,
+    this.patientNames,
   });
 
   Map<String, dynamic> toMap() {
@@ -25,6 +27,7 @@ class UserModel {
       'linkedCaregiverId': linkedCaregiverId,
       'linkedPatientIds': linkedPatientIds,
       'fcmToken': fcmToken,
+      'patientNames': patientNames,
     };
   }
 
@@ -36,6 +39,9 @@ class UserModel {
       linkedCaregiverId: map['linkedCaregiverId'],
       linkedPatientIds: List<String>.from(map['linkedPatientIds'] ?? []),
       fcmToken: map['fcmToken'],
+      patientNames: map['patientNames'] != null 
+          ? Map<String, String>.from(map['patientNames']) 
+          : null,
     );
   }
 }

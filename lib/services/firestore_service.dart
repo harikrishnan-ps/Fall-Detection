@@ -53,11 +53,18 @@ class FirestoreService {
 
   Future<void> unlinkPatient(String caregiverId, String patientId) async {
     await _db.collection(AppConstants.usersCollection).doc(caregiverId).update({
-      'linkedPatientIds': FieldValue.arrayRemove([patientId])
+      'linkedPatientIds': FieldValue.arrayRemove([patientId]),
+      'patientNames.$patientId': FieldValue.delete(),
     });
 
     await _db.collection(AppConstants.usersCollection).doc(patientId).update({
       'linkedCaregiverId': null,
+    });
+  }
+
+  Future<void> renamePatient(String caregiverId, String patientId, String newName) async {
+    await _db.collection(AppConstants.usersCollection).doc(caregiverId).update({
+      'patientNames.$patientId': newName,
     });
   }
 

@@ -7,7 +7,7 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:402794204666:android:5838a620a8d9d529cc2843",
+        "mobilesdk_app_id": "1:402794204666:android:fe63de36471ec840cc2843",
         "android_client_info": {
           "package_name": "com.example.fall_detection_app"
         }

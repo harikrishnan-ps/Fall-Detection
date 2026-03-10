@@ -16,9 +16,6 @@ class PatientDetailScreen extends StatefulWidget {
 }
 
 class _PatientDetailScreenState extends State<PatientDetailScreen> {
-
-
-
   late Stream<List<FallAlertModel>> _alertsStream;
 
   @override
@@ -30,23 +27,24 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
 
   @override
   void dispose() {
-
     super.dispose();
   }
 
+  /// Only build markers for alerts that have valid GPS coordinates.
   List<Marker> _buildMarkers(List<FallAlertModel> alerts) {
-    return alerts.map((alert) {
-      return Marker(
-        point: LatLng(alert.latitude, alert.longitude),
-        width: 40,
-        height: 40,
-        child: const Icon(
-          Icons.location_on,
-          color: Colors.red,
-          size: 40,
-        ),
-      );
-    }).toList();
+    return alerts
+        .where((a) => a.hasLocation)
+        .map((alert) => Marker(
+              point: LatLng(alert.latitude!, alert.longitude!),
+              width: 40,
+              height: 40,
+              child: const Icon(
+                Icons.location_on,
+                color: Colors.red,
+                size: 40,
+              ),
+            ))
+        .toList();
   }
 
   @override
@@ -55,10 +53,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       appBar: AppBar(title: const Text('Patient Details & Logs')),
 
       body: StreamBuilder<List<FallAlertModel>>(
-        stream: _alertsStream, // Fixed: Stream is stable now
+        stream: _alertsStream,
 
         builder: (context, snapshot) {
-
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -73,9 +70,13 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
             return const Center(child: Text("No falls recorded yet"));
           }
 
-          // Declarative markers
           final markers = _buildMarkers(alerts);
-          final initialPos = LatLng(alerts.first.latitude, alerts.first.longitude);
+
+          // Find the first alert with a valid location to centre the map.
+          final FallAlertModel? firstWithLocation =
+              alerts.where((a) => a.hasLocation).isEmpty
+                  ? null
+                  : alerts.firstWhere((a) => a.hasLocation);
 
           return Column(
             children: [
@@ -83,21 +84,43 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
               // ============== MAP ==============
               SizedBox(
                 height: 300,
-                child: FlutterMap(
-                  options: MapOptions(
-                    initialCenter: initialPos,
-                    initialZoom: 15.0,
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.example.fall_detection_app',
-                    ),
-                    MarkerLayer(
-                      markers: markers,
-                    ),
-                  ],
-                ),
+                child: firstWithLocation == null
+                    ? Container(
+                        color: Colors.grey[200],
+                        child: const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.location_off,
+                                  size: 48, color: Colors.grey),
+                              SizedBox(height: 8),
+                              Text(
+                                'Location unavailable\n(GPS module not connected)',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : FlutterMap(
+                        options: MapOptions(
+                          initialCenter: LatLng(
+                            firstWithLocation.latitude!,
+                            firstWithLocation.longitude!,
+                          ),
+                          initialZoom: 15.0,
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate:
+                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName:
+                                'com.example.fall_detection_app',
+                          ),
+                          MarkerLayer(markers: markers),
+                        ],
+                      ),
               ),
 
               const Divider(),
@@ -118,14 +141,12 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 child: ListView.builder(
                   itemCount: alerts.length,
                   itemBuilder: (context, index) {
-
                     final alert = alerts[index];
 
                     return Card(
                       color: Colors.red[50],
                       margin: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 5),
-
                       child: ListTile(
                         leading: const Icon(
                           Icons.warning,
@@ -135,18 +156,35 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                         title: const Text("Fall Detected"),
 
                         subtitle: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-
                             Text(
                               "Time: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(alert.timestamp)}",
                             ),
 
-                            Text(
-                              "Location: ${alert.latitude.toStringAsFixed(4)}, "
-                              "${alert.longitude.toStringAsFixed(4)}",
-                            ),
+                            // Show GPS if available, otherwise show a note
+                            alert.hasLocation
+                                ? Text(
+                                    "Location: ${alert.latitude!.toStringAsFixed(4)}, "
+                                    "${alert.longitude!.toStringAsFixed(4)}",
+                                  )
+                                : const Text(
+                                    "Location: GPS unavailable",
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+
+                            // Show decrypted message when present (hardware alerts)
+                            if (alert.decryptedMessage != null &&
+                                alert.decryptedMessage!.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  "Message: ${alert.decryptedMessage}",
+                                  style: const TextStyle(
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),

@@ -80,6 +80,23 @@ class FirestoreService {
     });
   }
 
+  Future<void> reportHardwareAlert({
+    required String patientId,
+    double? latitude,
+    double? longitude,
+    String? decryptedMessage,
+  }) async {
+    await _db.collection(AppConstants.alertsCollection).add({
+      'patientId': patientId,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      'timestamp': FieldValue.serverTimestamp(),
+      'isResolved': false,
+      if (decryptedMessage != null) 'decryptedMessage': decryptedMessage,
+      'source': 'hardware', // marks it as coming from ESP32
+    });
+  }
+
   Stream<List<FallAlertModel>> getAlertsForPatient(String patientId) {
     return _db
         .collection(AppConstants.alertsCollection)

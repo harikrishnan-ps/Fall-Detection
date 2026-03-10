@@ -9,6 +9,7 @@ import '../Encryption/ascon.dart';
 import '../utils/hex_utils.dart';
 import '../main.dart'; // import navigatorKey
 import '../utils/constants.dart';
+import '../services/firestore_service.dart';
 import 'dart:async';
 
 // Top-level background handler
@@ -194,13 +195,13 @@ class NotificationService {
           if (data['secure'] == true && data.containsKey('data')) {
             final String hexPayload = data['data'] as String;
             debugPrint("[HW Listener] 'data' field (secure) found — decrypting...");
-            _handleDecryptedAlert(hexPayload);
+            _handleDecryptedAlert(hexPayload, rawDoc: data);
 
           // ── Path 2: Legacy format → { encryptedPayload: "<hex>" }
           } else if (data.containsKey('encryptedPayload')) {
             final String hexPayload = data['encryptedPayload'] as String;
             debugPrint("[HW Listener] 'encryptedPayload' field found — decrypting...");
-            _handleDecryptedAlert(hexPayload);
+            _handleDecryptedAlert(hexPayload, rawDoc: data);
 
           } else {
             debugPrint("[HW Listener] No recognised encrypted field in doc $docId — skipping.");
@@ -252,14 +253,44 @@ class NotificationService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SHARED DECRYPT + DISPLAY HELPER
+  // SHARED DECRYPT + DISPLAY + LOG HELPER
+  // rawDoc: the original Firestore document map from ESP32. Used to extract
+  // GPS coordinates (when the GPS module is working) and the patientId.
   // ─────────────────────────────────────────────────────────────────────────
-  static void _handleDecryptedAlert(String hexPayload) {
+  static void _handleDecryptedAlert(String hexPayload,
+      {Map<String, dynamic>? rawDoc}) {
     final String decryptedMessage = processEncryptedAlert(hexPayload);
     debugPrint("[Alert] Decrypted message: $decryptedMessage");
 
-    // Show local notification (works in foreground, background, and when
-    // the screen is locked).
+    // ── Write a proper alert record to Firestore so it shows in the log/map ──
+    // The ESP32 doc may contain lat/lng when its GPS module is working.
+    // Use the real patientId from the doc if valid, otherwise fall back.
+    final String? rawPatientId = rawDoc?['patientId'] as String?;
+    final String patientId =
+        (rawPatientId != null &&
+                rawPatientId.isNotEmpty &&
+                rawPatientId != 'YOUR_PATIENT_ID_HERE')
+            ? rawPatientId
+            : AppConstants.hardwarePatientId;
+
+    final double? lat = rawDoc?['latitude'] != null
+        ? (rawDoc!['latitude'] as num).toDouble()
+        : null;
+    final double? lng = rawDoc?['longitude'] != null
+        ? (rawDoc!['longitude'] as num).toDouble()
+        : null;
+
+    // Fire-and-forget: write to Firestore in the background
+    FirestoreService().reportHardwareAlert(
+      patientId: patientId,
+      latitude: lat,
+      longitude: lng,
+      decryptedMessage: decryptedMessage,
+    ).catchError((e) {
+      debugPrint("[Alert] Failed to log hardware alert to Firestore: $e");
+    });
+
+    // ── Show local notification ──────────────────────────────────────────────
     _localNotifications.show(
       DateTime.now().millisecondsSinceEpoch % 100000,
       "⚠️ EMERGENCY — Fall Detected",
@@ -277,7 +308,7 @@ class NotificationService {
       ),
     );
 
-    // Show an in-app alert dialog if the app is in the foreground.
+    // ── Show in-app dialog when foregrounded ─────────────────────────────────
     final context = navigatorKey.currentContext;
     if (context != null) {
       showFallAlertDialog(context, decryptedMessage);

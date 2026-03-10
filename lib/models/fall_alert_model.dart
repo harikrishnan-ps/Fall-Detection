@@ -7,6 +7,7 @@ class FallAlertModel {
   final double longitude;
   final DateTime timestamp;
   final bool isResolved;
+  final String? encryptedPayload;
 
   FallAlertModel({
     required this.id,
@@ -15,6 +16,7 @@ class FallAlertModel {
     required this.longitude,
     required this.timestamp,
     this.isResolved = false,
+    this.encryptedPayload,
   });
 
   Map<String, dynamic> toMap() {
@@ -34,9 +36,11 @@ class FallAlertModel {
 
     patientId: map['patientId'] ?? '',
 
-    latitude: (map['latitude'] as num).toDouble(),
+    latitude: map['latitude'] != null ? (map['latitude'] as num).toDouble() : 0.0,
 
-    longitude: (map['longitude'] as num).toDouble(),
+    longitude: map['longitude'] != null ? (map['longitude'] as num).toDouble() : 0.0,
+    
+    encryptedPayload: map['encryptedPayload'] as String?,
 
     timestamp: map['timestamp'] is Timestamp
         ? (map['timestamp'] as Timestamp).toDate()

@@ -18,12 +18,20 @@ class CaregiverDashboard extends StatefulWidget {
 
 class _CaregiverDashboardState extends State<CaregiverDashboard> {
 
+  List<String> _lastPatientIds = [];
+
   @override
   void initState() {
     super.initState();
+    // Start hardware listener immediately — no patientId dependency.
+    // This is what catches alerts from the hardware device (fall@gmail.com).
+    NotificationService.listenToHardwareAlerts();
+  }
 
-    // Notifications are initialized in main.dart, but we can re-check permissions here if needed.
-    // NotificationService.initialize();
+  @override
+  void dispose() {
+    NotificationService.cancelAllSubscriptions();
+    super.dispose();
   }
 
   @override
@@ -113,6 +121,13 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
 
           final userData = snapshot.data!;
           final patientIds = userData.linkedPatientIds;
+
+          // Start the patient-linked listener only when the list changes
+          // (avoids re-subscribing on every StreamBuilder rebuild).
+          if (patientIds.join(',') != _lastPatientIds.join(',')) {
+            _lastPatientIds = patientIds;
+            NotificationService.listenToFirestoreAlerts(patientIds);
+          }
 
           if (patientIds.isEmpty) {
             return const Center(

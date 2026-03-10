@@ -9,6 +9,8 @@ import 'services/firestore_service.dart';
 import 'services/location_service.dart';
 import 'screens/wrapper.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -47,6 +49,7 @@ class MyApp extends StatelessWidget {
       ],
 
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         debugShowCheckedModeBanner: false,
         title: 'Fall Detection App',
 

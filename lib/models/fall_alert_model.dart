@@ -37,18 +37,38 @@ class FallAlertModel {
     };
   }
 
+  /// Extract "lat,lng" from a decrypted message like:
+  ///   "FALL 9.827807,76.511563 @ 2026-04-03T03:16:50Z"
+  static (double?, double?) _parseCoords(String? msg) {
+    if (msg == null) return (null, null);
+    // Match an optional sign, digits, dot, digits pair separated by a comma
+    final re = RegExp(r'(-?\d+\.\d+),(-?\d+\.\d+)');
+    final m = re.firstMatch(msg);
+    if (m == null) return (null, null);
+    return (double.tryParse(m.group(1)!), double.tryParse(m.group(2)!));
+  }
+
   factory FallAlertModel.fromMap(Map<String, dynamic> map) {
     // Accept both ESP32 field name ('data') and legacy ('encryptedPayload')
     final rawPayload =
         map['encryptedPayload'] as String? ?? map['data'] as String?;
 
-    // GPS — may be absent when ESP32 GPS is not working
-    final lat = map['latitude'] != null
+    final decryptedMessage = map['decryptedMessage'] as String?;
+
+    // GPS — prefer explicit Firestore fields; fall back to coords embedded
+    // in the decrypted message (new firmware: "FALL lat,lng @ timestamp")
+    double? lat = map['latitude'] != null
         ? (map['latitude'] as num).toDouble()
         : null;
-    final lng = map['longitude'] != null
+    double? lng = map['longitude'] != null
         ? (map['longitude'] as num).toDouble()
         : null;
+
+    if (lat == null || lng == null) {
+      final (parsedLat, parsedLng) = _parseCoords(decryptedMessage);
+      lat ??= parsedLat;
+      lng ??= parsedLng;
+    }
 
     return FallAlertModel(
       id: map['id'] ?? '',
@@ -56,7 +76,7 @@ class FallAlertModel {
       latitude: lat,
       longitude: lng,
       encryptedPayload: rawPayload,
-      decryptedMessage: map['decryptedMessage'] as String?,
+      decryptedMessage: decryptedMessage,
       timestamp: map['timestamp'] is Timestamp
           ? (map['timestamp'] as Timestamp).toDate()
           : DateTime.now(),
